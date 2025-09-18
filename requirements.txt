@@ -1,1 +1,6 @@
-streamlit\n
+streamlit
+pandas
+pyarrow
+db-dtypes
+google-cloud-bigquery
+google-auth
