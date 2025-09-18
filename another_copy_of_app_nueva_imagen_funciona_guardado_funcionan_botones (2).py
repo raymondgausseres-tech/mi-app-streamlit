@@ -8,73 +8,22 @@ Original file is located at
 
 #FASE DE PREPARACIÓN
 
-## Instalación de Bibliotecas
-"""
+import streamlit as st
+from google.oauth2 import service_account
+from google.cloud import bigquery
+import pandas as pd
 
-# --- PASO 1: INSTALAR BIBLIOTECAS NECESARIAS ---
-print("Instalando bibliotecas necesarias (streamlit, pyngrok, google-cloud-bigquery)...")
-!pip install streamlit pyngrok google-cloud-bigquery -q
-print("✓ Instalación de bibliotecas completada.")
-print("-" * 50)
+# --- BigQuery desde Secrets ---
+@st.cache_resource
+def get_bq_client():
+    creds_info = dict(st.secrets["gcp_service_account"])  # ← sección en Settings → Secrets
+    creds = service_account.Credentials.from_service_account_info(creds_info)
+    return bigquery.Client(credentials=creds, project=creds.project_id)
 
-!pip install streamlit pandas google-cloud-bigquery
-!pip install streamlit-quill
-
-"""## Configuración y Verificación de Credenciales
-
-"""
-
-# --- PASO 2: VERIFICACIÓN DEL ARCHIVO DE CREDENCIALES ---
-import os
-from google.colab import files
-
-CREDENTIALS_FILE = "/content/miespacioterapeutico-1283652e341e.json"
-
-print(f"Verificando la existencia del archivo de credenciales en: {CREDENTIALS_FILE}")
-
-# Si el archivo no existe, pide al usuario que lo suba
-if not os.path.exists(CREDENTIALS_FILE):
-    print("\n⚠️ Archivo de credenciales no encontrado. Por favor, sube el archivo 'miespacioterapeutico-1283652e341e.json' ahora.")
-    uploaded = files.upload()
-
-    # Intenta renombrar el archivo si se subió con un nombre diferente
-    for fn in uploaded.keys():
-        if fn != CREDENTIALS_FILE.split('/')[-1]:
-            try:
-                os.rename(f"/content/{fn}", CREDENTIALS_FILE)
-                print(f"✓ Archivo subido renombrado a: '{CREDENTIALS_FILE.split('/')[-1]}'")
-            except Exception as e:
-                print(f"❌ No se pudo renombrar el archivo subido: {e}")
-        else:
-            print(f"✓ Archivo subido: '{fn}'")
-
-# Volver a verificar la existencia después de la subida
-if os.path.exists(CREDENTIALS_FILE):
-    print("✅ El archivo de credenciales fue encontrado y está listo.")
-else:
-    print("❌ Error: El archivo de credenciales NO fue encontrado en la ruta especificada. La ejecución no continuará.")
-    raise FileNotFoundError("Credenciales de BigQuery no encontradas.")
-
-print("-" * 50)
-
-"""## Configuración del Token de ngrok
-
-"""
-
-# --- PASO 3: CONFIGURAR TOKEN DE NGROK ---
-from pyngrok import ngrok
-import getpass
-import os
-
-NGROK_AUTH_TOKEN = "32ErhfVTbh91cHC38eX9mb76hIv_5gYyLQ5cZJbVvHJA79mZK" # Reemplaza con tu token real
-
-print("Configurando token de ngrok...")
-try:
-    ngrok.set_auth_token(NGROK_AUTH_TOKEN)
-    print("✓ Token de ngrok configurado.")
-except Exception as e:
-    print(f"⚠️ Error al configurar el token de ngrok: {e}")
-print("-" * 50)
+@st.cache_data(ttl=600)
+def run_query(sql: str) -> pd.DataFrame:
+    client = get_bq_client()
+    return client.query(sql).result().to_dataframe()
 
 """#FASE IMPLEMENTACIÓN DE LA APLICACIÓN
 
